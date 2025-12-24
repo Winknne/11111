@@ -33,7 +33,7 @@ export const analyzeNarrative = async (text: string): Promise<AnalysisResult> =>
   const ai = getAI();
   
   // 使用目前最稳定的模型
-  const modelName = "gemini-1.5-flash"; 
+  const modelName = "gemini-2.0-flash"; 
 
   try {
     const response = await ai.models.generateContent({
@@ -75,7 +75,7 @@ export const analyzeNarrative = async (text: string): Promise<AnalysisResult> =>
 export const getSuspectResponse = async (systemInstruction: string, history: Message[], message: string): Promise<string> => {
   const ai = getAI();
   const chat = ai.chats.create({
-    model: 'gemini-1.5-flash', 
+    model: 'gemini-2.0-flash', 
     config: { systemInstruction },
     history: history.map(m => ({
       role: m.role,
