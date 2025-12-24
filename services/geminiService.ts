@@ -12,7 +12,7 @@ const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 export const analyzeNarrative = async (text: string): Promise<AnalysisResult> => {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
+    model: "gemini-2.0-flash",
     contents: text,
     config: {
       systemInstruction: ANALYSIS_SYSTEM_PROMPT,
@@ -46,7 +46,7 @@ export const analyzeNarrative = async (text: string): Promise<AnalysisResult> =>
 export const getSuspectResponse = async (systemInstruction: string, history: Message[], message: string): Promise<string> => {
   const ai = getAI();
   const chat = ai.chats.create({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-2.0-flash',
     config: { systemInstruction },
     history: history.map(m => ({
       role: m.role,
