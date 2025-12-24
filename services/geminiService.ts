@@ -6,14 +6,34 @@ import { AnalysisResult, Message } from "../types";
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 /**
+ * 辅助函数：从混合文本中提取第一个有效的 JSON 对象字符串
+ */
+function extractJSON(text: string): string {
+  try {
+    // 1. 尝试直接解析，如果成功则直接返回
+    JSON.parse(text);
+    return text;
+  } catch (e) {
+    // 2. 如果直接解析失败，使用正则寻找最外层的 {}
+    // 匹配第一个 { 开始，到最后一个 } 结束的内容（包括换行符）
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return jsonMatch[0];
+    }
+    // 3. 如果找不到 {}，抛出原始文本以便调试
+    throw new Error("No JSON object found in response");
+  }
+}
+
+/**
  * Analyzes a narrative using the Tri-Lens Protocol.
  * Restores Google Search Grounding to find real-world sources.
  */
 export const analyzeNarrative = async (text: string): Promise<AnalysisResult> => {
   const ai = getAI();
   
-  // 1. 修改模型名称为当前可用的稳定版本 (推荐 gemini-1.5-flash 或 gemini-2.0-flash)
-  const modelName = "gemini-2.0-flash"; 
+  // 使用目前最稳定的模型
+  const modelName = "gemini-1.5-flash"; 
 
   try {
     const response = await ai.models.generateContent({
@@ -26,21 +46,11 @@ export const analyzeNarrative = async (text: string): Promise<AnalysisResult> =>
       },
     });
 
-    // 获取文本 (根据 SDK 版本，有时是属性有时是方法，这里做个兼容处理)
-    // @ts-ignore
-    const resultText = (typeof response.text === 'function' ? response.text() : response.text) || '{}';
+    const resultText = response.text ? response.text() : '{}';
+    
+    // [核心修复] 使用更稳健的提取逻辑
+    const cleanJsonText = extractJSON(resultText);
 
-    // 🔍【核弹级修复】不依赖 replace，而是直接截取第一个 '{' 和最后一个 '}' 之间的内容
-    // 这能解决 99% 的 "Invalid intelligence report format" 错误
-    const firstOpen = resultText.indexOf('{');
-    const lastClose = resultText.lastIndexOf('}');
-
-    if (firstOpen === -1 || lastClose === -1) {
-       console.error("AI Response (No JSON found):", resultText);
-       throw new Error("No JSON structure found in AI response.");
-    }
-
-    const cleanJsonText = resultText.substring(firstOpen, lastClose + 1);
     const json: AnalysisResult = JSON.parse(cleanJsonText);
     
     // Extract real web sources from grounding metadata if available
@@ -56,17 +66,16 @@ export const analyzeNarrative = async (text: string): Promise<AnalysisResult> =>
     
     return json;
   } catch (e) {
-    // 在控制台打印详细错误，方便调试
-    console.error("AI Analysis Failed. Detail:", e);
+    console.error("AI Analysis Failed. Error:", e);
+    // 只有在开发环境才抛出详细错误，生产环境给通用提示
     throw new Error("Invalid intelligence report format.");
   }
 };
 
 export const getSuspectResponse = async (systemInstruction: string, history: Message[], message: string): Promise<string> => {
   const ai = getAI();
-  // 3. 同样修改这里的模型名称
   const chat = ai.chats.create({
-    model: 'gemini-2.0-flash', 
+    model: 'gemini-1.5-flash', 
     config: { systemInstruction },
     history: history.map(m => ({
       role: m.role,
